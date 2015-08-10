@@ -1,6 +1,7 @@
 package com.mariasales.leagueoflegendsapp;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -24,32 +25,32 @@ import android.widget.ListView;
 import android.widget.SearchView;
 import android.widget.TextView;
 
+import com.applidium.shutterbug.cache.ImageCache;
 import com.applidium.shutterbug.utils.ShutterbugManager;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 public class ChampionSearchActivity extends Activity {
 
     private ListView championsListView;
     private List<Champion> championsList = new ArrayList<Champion>();
-    private ArrayAdapter<Champion> adapter;
+    private ChampionsArrayAdapter adapter;
+    private EditText searchBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_champion_search);
 
-        Log.e("ERROR", "1");
-
         populateChampionsList(); //TODO Get all champions before show list
         //populateTeste();
-        Log.e("ERROR", "3");
         populateChampionsListView();
-        Log.e("ERROR", "5");
         registerClickCallBack();
+        setSearchBar();
     }
 
     private void populateTeste() {
@@ -97,6 +98,7 @@ public class ChampionSearchActivity extends Activity {
                     // TODO
                 }
             });
+
         }
     }
 
@@ -109,20 +111,14 @@ public class ChampionSearchActivity extends Activity {
 
     private void registerClickCallBack() {
 
-        Log.e("ERROR", "6");
         ListView list = (ListView) findViewById(R.id.championsListView);
-        Log.e("ERROR", "7");
 
         list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View viewClicked, int position, long id) {
-                Log.e("ERROR", "8");
                 Champion clickedChampion = championsList.get(position);
-                Log.e("ERROR", "9");
                 Intent intent = new Intent(ChampionSearchActivity.this, TeamViewerActivity.class);
-                Log.e("ERROR", "10");
                 intent.putExtra("Champion", clickedChampion);
-                Log.e("ERROR", "11");
 
                 setResult(Activity.RESULT_OK, intent);
                 finish();
@@ -130,23 +126,67 @@ public class ChampionSearchActivity extends Activity {
         });
     }
 
+    private void setSearchBar() {
+        searchBar = (EditText) findViewById(R.id.search_bar);
+
+        searchBar.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String text = searchBar.getText().toString().toLowerCase(Locale.getDefault());
+                adapter.filter(text);
+            }
+        });
+    }
+
     private class ChampionsArrayAdapter extends ArrayAdapter<Champion> implements Filterable {
+
+        Context context;
+        LayoutInflater inflater;
+        private List<Champion> filteredData = null;
+        private ArrayList<Champion> arrayList;
 
         public ChampionsArrayAdapter() {
             super(ChampionSearchActivity.this, R.layout.champion_list_item_view, championsList);
+
+            context = ChampionSearchActivity.this;
+            inflater = LayoutInflater.from(context);
+            filteredData = championsList;
+            arrayList = new ArrayList<Champion>();
+            arrayList.addAll(championsList);
+        }
+
+        public class ViewHolder {
+            TextView championName;
         }
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
 
+            final ViewHolder holder;
             View itemView = convertView;
 
             // Make sure we have a given view to work with (may have been given null)
-            if( itemView == null)
+            if( itemView == null) {
+                holder = new ViewHolder();
                 itemView = getLayoutInflater().inflate(R.layout.champion_list_item_view, parent, false);
 
+                holder.championName = (TextView) findViewById(R.id.champion_name);
+            }
+            else
+                holder = (ViewHolder) itemView.getTag();
+
+
             // Find the champion to work with
-            Champion currentChampion = championsList.get(position);
+            Champion currentChampion = filteredData.get(position);
 
             // Fill the view
             ImageView championIcon = (ImageView) itemView.findViewById(R.id.champion_icon);
@@ -166,6 +206,41 @@ public class ChampionSearchActivity extends Activity {
 
             return itemView;
 
+        }
+
+        public void filter (String charText) {
+            charText = charText.toLowerCase(Locale.getDefault());
+            filteredData.clear();
+            if (charText.length() == 0) {
+                filteredData.addAll(arrayList);
+                notifyDataSetChanged();
+            }
+            else
+            {
+                for (Champion c : arrayList)
+                {
+                    if (c.getName().toLowerCase(Locale.getDefault()).contains(charText))
+                    {
+                        filteredData.add(c);
+                    }
+                }
+            }
+            notifyDataSetChanged();
+        }
+
+        @Override
+        public int getCount() {
+            return filteredData.size();
+        }
+
+        @Override
+        public Champion getItem(int position) {
+            return filteredData.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
         }
     }
 }
